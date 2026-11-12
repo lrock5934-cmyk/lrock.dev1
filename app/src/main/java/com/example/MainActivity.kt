@@ -33,16 +33,41 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import com.example.ui.theme.*
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+
+fun getSafeAuth(context: android.content.Context): FirebaseAuth {
+  try {
+    if (FirebaseApp.getApps(context).isEmpty()) {
+      val options = com.google.firebase.FirebaseOptions.Builder()
+        .setApiKey("AIzaSyCTlO36mqxI7z-aAWrEIDBMmflWq-6PKEg")
+        .setApplicationId("1:453694868322:android:f2b48a6537320689b63a3b")
+        .setProjectId("timeless-13c21")
+        .setStorageBucket("timeless-13c21.firebasestorage.app")
+        .build()
+      FirebaseApp.initializeApp(context, options)
+    }
+  } catch (e: Exception) {
+    try {
+      FirebaseApp.initializeApp(context)
+    } catch (ignored: Exception) {}
+  }
+  return FirebaseAuth.getInstance()
+}
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    FirebaseApp.initializeApp(this)
     enableEdgeToEdge()
     setContent {
       MyApplicationTheme {
@@ -50,7 +75,194 @@ class MainActivity : ComponentActivity() {
           modifier = Modifier.fillMaxSize(),
           color = MaterialTheme.colorScheme.background
         ) {
-          MainScreen()
+          var currentUser by remember { mutableStateOf<com.google.firebase.auth.FirebaseUser?>(null) }
+
+          LaunchedEffect(Unit) {
+            try {
+              currentUser = getSafeAuth(this@MainActivity).currentUser
+            } catch (e: Exception) {
+              currentUser = null
+            }
+          }
+
+          if (currentUser == null) {
+            AuthScreen(onAuthSuccess = { 
+              try {
+                currentUser = getSafeAuth(this@MainActivity).currentUser
+              } catch (e: Exception) {
+                currentUser = null
+              }
+            })
+          } else {
+            MainScreen(onLogout = {
+              try {
+                getSafeAuth(this@MainActivity).signOut()
+              } catch (e: Exception) {}
+              currentUser = null
+            })
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun AuthScreen(onAuthSuccess: () -> Unit) {
+  val context = LocalContext.current
+  var email by remember { mutableStateOf("") }
+  var password by remember { mutableStateOf("") }
+  var isSignUp by remember { mutableStateOf(false) }
+  var isLoading by remember { mutableStateOf(false) }
+
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(DeepNavy)
+      .padding(24.dp),
+    contentAlignment = Alignment.Center
+  ) {
+    Card(
+      modifier = Modifier.fillMaxWidth(),
+      shape = RoundedCornerShape(20.dp),
+      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+      ) {
+        Box(
+          modifier = Modifier
+            .size(72.dp)
+            .clip(CircleShape)
+            .background(DeepNavy),
+          contentAlignment = Alignment.Center
+        ) {
+          Image(
+            painter = painterResource(id = R.drawable.lrock_logo),
+            contentDescription = "LRock Logo",
+            modifier = Modifier
+              .size(72.dp)
+              .clip(CircleShape)
+          )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+          text = if (isSignUp) "Create LRock.dev Account" else "Sign In to LRock.dev",
+          style = MaterialTheme.typography.headlineSmall,
+          fontWeight = FontWeight.Bold,
+          color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+          text = "Web & App Development in Accra, Ghana",
+          style = MaterialTheme.typography.bodySmall,
+          color = TextMuted,
+          textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+          value = email,
+          onValueChange = { email = it },
+          label = { Text("Email Address") },
+          leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+          modifier = Modifier.fillMaxWidth(),
+          singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+          value = password,
+          onValueChange = { password = it },
+          label = { Text("Password") },
+          leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+          visualTransformation = PasswordVisualTransformation(),
+          modifier = Modifier.fillMaxWidth(),
+          singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+          onClick = {
+            if (email.isBlank() || password.isBlank()) {
+              Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
+              return@Button
+            }
+            isLoading = true
+            val auth = getSafeAuth(context)
+            if (isSignUp) {
+              auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                  if (task.isSuccessful) {
+                    isLoading = false
+                    Toast.makeText(context, "Account created successfully!", Toast.LENGTH_SHORT).show()
+                    onAuthSuccess()
+                  } else {
+                    auth.signInWithEmailAndPassword(email, password)
+                      .addOnCompleteListener { loginTask ->
+                        isLoading = false
+                        Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
+                        onAuthSuccess()
+                      }
+                  }
+                }
+            } else {
+              auth.signInWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                  isLoading = false
+                  Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
+                  onAuthSuccess()
+                }
+            }
+          },
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp),
+          colors = ButtonDefaults.buttonColors(containerColor = TealDark)
+        ) {
+          if (isLoading) {
+            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+          } else {
+            Text(
+              text = if (isSignUp) "Sign Up" else "Sign In",
+              color = Color.White,
+              fontWeight = FontWeight.Bold,
+              fontSize = 16.sp
+            )
+          }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(
+          onClick = { isSignUp = !isSignUp },
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text(
+            text = if (isSignUp) "Already have an account? Sign In" else "Need an account? Sign Up",
+            color = TealDark
+          )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedButton(
+          onClick = {
+            getSafeAuth(context).signInAnonymously()
+              .addOnCompleteListener {
+                Toast.makeText(context, "Entered as Guest", Toast.LENGTH_SHORT).show()
+                onAuthSuccess()
+              }
+          },
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text("Continue as Guest", color = TextMuted)
         }
       }
     }
@@ -59,14 +271,14 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(onLogout: () -> Unit) {
   val context = LocalContext.current
   val listState = rememberLazyListState()
   val coroutineScope = rememberCoroutineScope()
 
   // Contact form state
   var name by remember { mutableStateOf("") }
-  var phoneOrWhatsapp by remember { mutableStateOf("") }
+  var phone by remember { mutableStateOf("") }
   var message by remember { mutableStateOf("") }
   var showSuccessDialog by remember { mutableStateOf(false) }
 
@@ -86,11 +298,12 @@ fun MainScreen() {
                 .background(DeepNavy),
               contentAlignment = Alignment.Center
             ) {
-              Text(
-                text = "LD",
-                color = TealAccent,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+              Image(
+                painter = painterResource(id = R.drawable.lrock_logo),
+                contentDescription = "LRock Logo",
+                modifier = Modifier
+                  .size(36.dp)
+                  .clip(CircleShape)
               )
             }
             Spacer(modifier = Modifier.width(10.dp))
@@ -112,10 +325,12 @@ fun MainScreen() {
           }
         },
         actions = {
+          IconButton(onClick = onLogout) {
+            Icon(Icons.Default.Logout, contentDescription = "Logout", tint = MaterialTheme.colorScheme.error)
+          }
           FilledTonalButton(
             onClick = {
               coroutineScope.launch {
-                // Scroll to contact section index (approx item 4 or 5)
                 listState.animateScrollToItem(4)
               }
             },
@@ -136,7 +351,6 @@ fun MainScreen() {
       )
     },
     bottomBar = {
-      // Minimal Footer as requested
       Surface(
         color = DeepNavy,
         modifier = Modifier.fillMaxWidth()
@@ -147,7 +361,6 @@ fun MainScreen() {
             .padding(vertical = 16.dp, horizontal = 20.dp),
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
-          // 4 Text links only
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -183,31 +396,20 @@ fun MainScreen() {
       modifier = Modifier
         .fillMaxSize()
         .padding(innerPadding),
-      contentPadding = PaddingBottomWindowInsetPadding()
+      contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-      // 0. Hero Section
       item {
         HeroSection(
-          onGetStartedClick = {
-            coroutineScope.launch { listState.animateScrollToItem(4) }
-          },
-          onExploreClick = {
-            coroutineScope.launch { listState.animateScrollToItem(1) }
-          }
+          onGetStartedClick = { coroutineScope.launch { listState.animateScrollToItem(4) } },
+          onExploreClick = { coroutineScope.launch { listState.animateScrollToItem(1) } }
         )
       }
-
-      // 1. Services Section
       item {
         ServicesSection()
       }
-
-      // 2. How It Works Section
       item {
         HowItWorksSection()
       }
-
-      // 3. Interactive Estimator Section (Bonus Value)
       item {
         EstimatorSection(
           selectedService = selectedServiceType,
@@ -220,18 +422,16 @@ fun MainScreen() {
           }
         )
       }
-
-      // 4. Contact Section (Main Goal)
       item {
         ContactSection(
           name = name,
           onNameChanged = { name = it },
-          phone = phoneOrWhatsapp,
-          onPhoneChanged = { phoneOrWhatsapp = it },
+          phone = phone,
+          onPhoneChanged = { phone = it },
           message = message,
           onMessageChanged = { message = it },
           onSubmit = {
-            if (name.isBlank() || phoneOrWhatsapp.isBlank() || message.isBlank()) {
+            if (name.isBlank() || phone.isBlank() || message.isBlank()) {
               Toast.makeText(context, "Please fill in all fields", Toast.LENGTH_SHORT).show()
             } else {
               showSuccessDialog = true
@@ -262,7 +462,7 @@ fun MainScreen() {
       title = { Text("Message Sent Successfully!", textAlign = TextAlign.Center) },
       text = {
         Text(
-          "Thank you, $name! LRock.dev has received your message and will reach out via phone/WhatsApp ($phoneOrWhatsapp) or email shortly.",
+          "Thank you, $name! LRock.dev has received your message and will reach out via phone/WhatsApp ($phone) or email shortly.",
           textAlign = TextAlign.Center
         )
       },
@@ -271,7 +471,7 @@ fun MainScreen() {
           onClick = {
             showSuccessDialog = false
             name = ""
-            phoneOrWhatsapp = ""
+            phone = ""
             message = ""
           },
           colors = ButtonDefaults.buttonColors(containerColor = DeepNavy)
@@ -283,7 +483,6 @@ fun MainScreen() {
         OutlinedButton(
           onClick = {
             showSuccessDialog = false
-            // Open WhatsApp directly with message
             val encodedMsg = Uri.encode(message)
             val url = "https://wa.me/233536759904?text=$encodedMsg"
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -294,11 +493,6 @@ fun MainScreen() {
       }
     )
   }
-}
-
-@Composable
-fun PaddingBottomWindowInsetPadding(): PaddingValues {
-  return PaddingValues(bottom = 32.dp)
 }
 
 @Composable
@@ -317,7 +511,6 @@ fun HeroSection(onGetStartedClick: () -> Unit, onExploreClick: () -> Unit) {
       horizontalAlignment = Alignment.Start,
       modifier = Modifier.fillMaxWidth()
     ) {
-      // Location Pill
       Surface(
         color = TealAccent.copy(alpha = 0.15f),
         shape = RoundedCornerShape(20.dp),
@@ -392,7 +585,6 @@ fun HeroSection(onGetStartedClick: () -> Unit, onExploreClick: () -> Unit) {
 
       Spacer(modifier = Modifier.height(24.dp))
 
-      // Trust metrics
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
@@ -818,7 +1010,6 @@ fun ContactSection(
 
     Spacer(modifier = Modifier.height(24.dp))
 
-    // Direct Contact Action Buttons
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -858,7 +1049,6 @@ fun ContactSection(
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    // Visible contact info
     Card(
       modifier = Modifier.fillMaxWidth(),
       colors = CardDefaults.cardColors(containerColor = SlateNavy),
@@ -881,7 +1071,6 @@ fun ContactSection(
 
     Spacer(modifier = Modifier.height(24.dp))
 
-    // Form
     Card(
       modifier = Modifier
         .fillMaxWidth()

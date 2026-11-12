@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/lrock_dev_icon_1794482931417"
+        android:drawable="@drawable/lrock_logo"
         android:gravity="center" />
 </layer-list>
