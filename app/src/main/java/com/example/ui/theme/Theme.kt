@@ -31,8 +31,8 @@ private val LightColorScheme =
     surface = SurfaceLight,
     onPrimary = Color.White,
     onSecondary = DeepNavy,
-    onBackground = TextDark,
-    onSurface = TextDark,
+    onBackground = Color.Black,
+    onSurface = Color.Black,
   )
 
 @Composable

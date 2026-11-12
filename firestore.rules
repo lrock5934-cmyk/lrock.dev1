@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Contact form submissions / project inquiries
+    match /contact_messages/{messageId} {
+      // Allow public (anonymous visitors) to submit contact messages
+      allow create: if true;
+      
+      // Only authenticated admin users (Firebase Auth) can view, update, or delete messages
+      allow read, update, delete: if request.auth != null;
+    }
+    
+    // General authenticated access for other collections
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

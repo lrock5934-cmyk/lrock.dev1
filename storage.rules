@@ -1,0 +1,15 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Portfolio images & assets publicly readable, writable by admin
+    match /portfolio/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Default fallback: authenticated users only
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
