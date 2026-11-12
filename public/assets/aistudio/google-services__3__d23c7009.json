@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "453694868322",
+    "project_id": "timeless-13c21",
+    "storage_bucket": "timeless-13c21.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:453694868322:android:f2b48a6537320689b63a3b",
+        "android_client_info": {
+          "package_name": "COM.lrock.dev.TIMELESS"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "453694868322-661n9qcm2nba581258nmv90tnl0vfkcv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTlO36mqxI7z-aAWrEIDBMmflWq-6PKEg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "453694868322-661n9qcm2nba581258nmv90tnl0vfkcv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
